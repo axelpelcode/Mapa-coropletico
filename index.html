@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8" />
+        <link rel="icon" href="./favicon.png" />
+        <link rel="stylesheet" href="./style.css" />
+        <title>Choropleth map D3</title>
+    </head>
+    <body>
+        <!--Import D3 library-->
+        <script src="https://cdn.jsdelivr.net/npm/d3@7"></script>
+        <!--TopoJson cdn-->
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/topojson/3.0.2/topojson.min.js" integrity="sha512-4UKI/XKm3xrvJ6pZS5oTRvIQGIzZFoXR71rRBb1y2N+PbwAsKa5tPl2J6WvbEvwN3TxQCm8hMzsl/pO+82iRlg==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+        <!--FreeCodeCamp Test-->
+        <script src="https://cdn.freecodecamp.org/testable-projects-fcc/v1/bundle.js"></script>
+        <!--App with D3-->
+        <div id="app"></div>
+        <script>
+        //Request
+          const getData = async() => {
+            const url1 = "https://cdn.freecodecamp.org/testable-projects-fcc/data/choropleth_map/for_user_education.json";
+            const url2 = "https://cdn.freecodecamp.org/testable-projects-fcc/data/choropleth_map/counties.json";
+            const res1 = await fetch( url1 );
+            const res2 = await fetch( url2 );
+            const Datos = [ await res1.json(), await res2.json() ];
+            return new Promise(( resolve, reject ) => {
+                resolve( Datos );
+            });
+          };
+        //Titulos
+          d3.select("#app")
+          .append("h1")
+          .attr("id", "title")
+          .text("Choropleth map with D3");
+
+          d3.select("#app")
+          .append("h3")
+          .attr("id", "description")
+          .attr("class", "subtitle")
+          .text("United States Educational Attainment");
+
+          d3.select("#app")
+          .append("h5")
+          .attr("id", "description2")
+          .attr("class", "subtitle")
+          .text("Percentage of adults age 25 and older with a bachelor's degree or higher (2010-2014)");
+        //Canvas
+          const w = 1000;
+          const h = 600;
+          const padding = 60;  
+          const svg = d3.select( "#app" )
+          .append( "svg" )
+          .attr("id","canvas")
+          .attr( "width", w )
+          .attr( "height", h );
+
+        //Colores
+          const colores = [
+            "rgb(133, 219, 120)",
+            "rgb(100, 214, 82)",
+            "rgb(70, 213, 48)",
+            "rgb(32, 212, 5)"
+          ];
+        //Llamada al dataset
+          getData().then( ( data ) => {
+            const education = data[0];
+            const county = topojson.feature( data[1], data[1].objects.counties ).features;
+        //Mapa
+            svg.selectAll("path")
+            .data( county )
+            .enter()
+            .append("path")
+            .attr("d", d3.geoPath())
+            .attr("class", "county")
+            .attr("fill",( d )=> {
+              const id = d.id;
+              const cdata = education.find( ( i )=> i.fips === id )
+              const porcentaje = cdata.bachelorsOrHigher;
+              if ( porcentaje < 15 ){
+                return colores[0];
+              } else if ( porcentaje < 25 ){
+                return colores[1];
+              } else if ( porcentaje < 35 ){
+                return colores[2];
+              } else {
+                return colores[3];
+              };
+            })
+            .attr("data-fips",( d )=> d.id )
+            .attr("data-education",( d )=> {
+              const id = d.id;
+              const cdata = education.find( ( i )=> i.fips === id )
+              const porcentaje = cdata.bachelorsOrHigher;
+              return porcentaje;
+            })
+            .on('mouseover',( m, data ) => { 
+                tooltip.transition()
+                .style("visibility", "visible")
+                .style("top", 120 + "px")
+                .attr("data-education",( d )=> {
+                  const id = data.id;
+                  const cdata = education.find( ( i )=> i.fips === id )
+                  const tooltipText = [ cdata.bachelorsOrHigher, cdata.area_name, cdata.state ];
+                  return tooltipText[0]; })
+                .style("opacity", "0.9") 
+                .text(( d )=> {
+                  const id = data.id;
+                  const cdata = education.find( ( i )=> i.fips === id )
+                  const tooltipText = [ cdata.bachelorsOrHigher, cdata.area_name, cdata.state ];
+                  return tooltipText[1] + ", " + tooltipText[2] + " - " + tooltipText[0] + "%" }); 
+              })
+              .on('mouseout', () => tooltip.transition()
+              .style("visibility", "hidden")
+              .style("opacity", 0)); 
+        //Legend
+            const legend = d3.select( "#app")
+            .append("svg")
+            .attr("id", "legend")
+            .attr("width", 230 )
+            .attr("height", 50 );
+
+            legend.selectAll( "rect" )
+            .data( colores )
+            .enter()
+            .append( "rect" )
+            .attr( "id", "cellLeg")
+            .attr( "width", 49 )
+            .attr( "height", 20 )
+            .style( "fill", d => d )
+            .attr("x", ( d, i ) => i * 50 )
+            .attr( "y", 0 )
+            .append( "title" )
+            .text( d => d.text );
+
+            const xScaleLeg = d3.scaleLinear()
+            .domain([ 0, 
+              100 ])
+            .range([ 0, 200 ]);
+
+            const xAxisLeg = d3.axisBottom( xScaleLeg );
+
+            legend.append( "g" )
+            .attr( "id", "x-axisLeg" )
+            .attr( "transform", "translate(0, " + 20 + ")" )
+            .call( xAxisLeg );
+        //Tooltip
+          const tooltip = d3.select("#app")
+            .append("div")
+            .attr("id","tooltip");
+
+          });
+        </script>
+    </body>
+</html>
